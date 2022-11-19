@@ -5,9 +5,8 @@ use x11rb::protocol::xfixes::{
     destroy_region, ConnectionExt as _, RegionWrapper, SetWindowShapeRegionRequest,
 };
 use x11rb::protocol::xproto::{
-    AtomEnum, ClientMessageEvent, ColormapAlloc, ColormapWrapper, ConfigureWindowAux,
-    ConnectionExt as _, CreateGCAux, CreateWindowAux, EventMask, GcontextWrapper, ImageFormat,
-    PropMode, Rectangle, Screen, StackMode, Window, WindowClass,
+    ClientMessageEvent, ColormapAlloc, ColormapWrapper, ConfigureWindowAux, ConnectionExt as _,
+    CreateWindowAux, EventMask, PropMode, Screen, StackMode, Window, WindowClass,
 };
 use x11rb::wrapper::ConnectionExt as _;
 
@@ -106,51 +105,6 @@ where
     Ok(())
 }
 
-pub fn find_window<Conn>(conn: &Conn, root_win_id: u32, name: &str) -> Result<Window>
-where
-    Conn: Connection,
-{
-    let tree = conn.query_tree(root_win_id)?.reply()?.children;
-
-    let net_wm_name = conn
-        .intern_atom(false, "_NET_WM_NAME".as_bytes())?
-        .reply()?
-        .atom;
-
-    let utf8_string = conn
-        .intern_atom(false, "UTF8_STRING".as_bytes())?
-        .reply()?
-        .atom;
-
-    for w in tree {
-        let reply = conn
-            .get_property(false, w, AtomEnum::WM_NAME, AtomEnum::STRING, 0, 100)?
-            .reply()?;
-        let w_name = std::str::from_utf8(reply.value.as_slice());
-        if w_name == Ok(name) {
-            return Ok(w);
-        }
-        let reply = conn
-            .get_property(false, w, net_wm_name, utf8_string, 0, 100)?
-            .reply()?;
-        let w_name = std::str::from_utf8(reply.value.as_slice());
-        if w_name == Ok(name) {
-            return Ok(w);
-        }
-    }
-
-    Err(anyhow::anyhow!("no window for name {}", name))
-}
-
-pub fn raise<Conn>(conn: &Conn, win_id: u32) -> Result<()>
-where
-    Conn: Connection,
-{
-    let values = ConfigureWindowAux::default().stack_mode(StackMode::ABOVE);
-    conn.configure_window(win_id, &values)?;
-    Ok(())
-}
-
 /// original hack, as `always_on_top` patterns are not fully effective with Xmonad
 /// not tested on other WMs yet
 pub fn raise_if_not_top<Conn>(conn: &Conn, root_win_id: u32, win_id: u32) -> Result<()>
@@ -230,19 +184,6 @@ where
     Ok(win_id)
 }
 
-/// connects briefly to the X11 server to find a window by name and make it input passthrough
-pub fn make_x11_win_input_passthrough(name: &str) -> Result<()> {
-    let (conn, screen_num) = x11rb::connect(None)?;
-    xfixes_init(&conn);
-    let screen = &conn.setup().roots[screen_num];
-
-    let win_id = find_window(&conn, screen.root, name)?;
-    input_passthrough(&conn, win_id)?;
-    conn.flush()?;
-
-    Ok(())
-}
-
 pub fn resize_window<Conn>(conn: &Conn, win_id: Window, width: u32, height: u32) -> Result<()>
 where
     Conn: Connection,
@@ -258,64 +199,6 @@ where
             sibling: None,
             stack_mode: None,
         },
-    )?;
-    Ok(())
-}
-
-// TODO implement double buffering, see https://github.com/tsoding/x11-double-buffering
-
-pub fn paint_rgba_pixels_on_window<Conn>(
-    conn: &Conn,
-    win_id: Window,
-    data: &[u8],
-    x: i32,
-    y: i32,
-    width: u32,
-    height: u32,
-) -> Result<()>
-where
-    Conn: Connection,
-{
-    let gc = GcontextWrapper::create_gc(conn, win_id, &CreateGCAux::new())?;
-
-    conn.put_image(
-        ImageFormat::Z_PIXMAP,
-        win_id,
-        gc.gcontext(),
-        width as u16,
-        height as u16,
-        x as i16,
-        y as i16,
-        0,
-        32,
-        data,
-    )?;
-    Ok(())
-}
-
-pub fn draw_a_rectangle<Conn>(
-    conn: &Conn,
-    win_id: u32,
-    x: i16,
-    y: i16,
-    width: u16,
-    height: u16,
-    color: u32,
-) -> Result<()>
-where
-    Conn: Connection,
-{
-    let gc_aux = CreateGCAux::new().foreground(color);
-    let gc = GcontextWrapper::create_gc(conn, win_id, &gc_aux)?;
-    conn.poly_fill_rectangle(
-        win_id,
-        gc.gcontext(),
-        &[Rectangle {
-            x,
-            y,
-            width,
-            height,
-        }],
     )?;
     Ok(())
 }
