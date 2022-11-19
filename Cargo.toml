@@ -1,5 +1,5 @@
 [package]
-name = "wgpu-x11"
+name = "egui-wgpu-x11"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,6 +7,9 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
+egui = "0.19"
+egui_demo_lib = "0.19"
+egui_wgpu_backend = "0.20"
 env_logger = "0.9"
 fontconfig = "0.6"
 pollster = "0.2"
