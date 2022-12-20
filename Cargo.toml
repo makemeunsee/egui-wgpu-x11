@@ -10,9 +10,9 @@ anyhow = "1.0"
 egui = "0.19"
 egui_demo_lib = "0.19"
 egui_wgpu_backend = "0.20"
-env_logger = "0.9"
+env_logger = "0.10"
 fontconfig = "0.6"
 pollster = "0.2"
 raw-window-handle = "0.5"
 wgpu = "0.14"
-x11rb = { version = "0.10", features = ["xfixes", "allow-unsafe-code"] }
+x11rb = { version = "0.11", features = ["xfixes", "allow-unsafe-code"] }

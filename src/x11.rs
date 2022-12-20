@@ -6,9 +6,8 @@ use x11rb::protocol::xfixes::{
 };
 use x11rb::protocol::xproto::{
     ClientMessageEvent, ColormapAlloc, ColormapWrapper, ConfigureWindowAux, ConnectionExt as _,
-    CreateWindowAux, EventMask, PropMode, Screen, StackMode, Window, WindowClass,
+    CreateWindowAux, EventMask, Screen, StackMode, Window, WindowClass,
 };
-use x11rb::wrapper::ConnectionExt as _;
 
 pub fn xfixes_init<Conn>(conn: &Conn)
 where
@@ -80,31 +79,6 @@ where
     Ok(())
 }
 
-pub fn with_name<Conn>(conn: &Conn, win_id: u32, name: &str) -> Result<()>
-where
-    Conn: Connection,
-{
-    let net_wm_name = conn
-        .intern_atom(false, "_NET_WM_NAME".as_bytes())?
-        .reply()?
-        .atom;
-
-    let utf8_string = conn
-        .intern_atom(false, "UTF8_STRING".as_bytes())?
-        .reply()?
-        .atom;
-
-    conn.change_property8(
-        PropMode::REPLACE,
-        win_id,
-        net_wm_name,
-        utf8_string,
-        name.as_bytes(),
-    )?;
-
-    Ok(())
-}
-
 /// original hack, as `always_on_top` patterns are not fully effective with Xmonad
 /// not tested on other WMs yet
 pub fn raise_if_not_top<Conn>(conn: &Conn, root_win_id: u32, win_id: u32) -> Result<()>
@@ -119,20 +93,6 @@ where
     }
 
     Ok(())
-}
-
-pub fn create_overlay_fullscreen_window<Conn>(conn: &Conn, screen: &Screen) -> Result<Window>
-where
-    Conn: Connection,
-{
-    create_overlay_window(
-        conn,
-        screen,
-        0,
-        0,
-        screen.width_in_pixels,
-        screen.height_in_pixels,
-    )
 }
 
 pub fn create_overlay_window<Conn>(
@@ -174,7 +134,7 @@ where
             .colormap(Some(cw.into_colormap()))
             .override_redirect(Some(1))
             .border_pixel(Some(1))
-            .event_mask(0b1_1111_1111_1111_1111_1111_1111),
+            .event_mask(Some(0b1_1111_1111_1111_1111_1111_1111u32.into())),
     )?;
 
     input_passthrough(conn, win_id)?;
@@ -182,23 +142,4 @@ where
     always_on_top(conn, screen.root, win_id)?;
 
     Ok(win_id)
-}
-
-pub fn resize_window<Conn>(conn: &Conn, win_id: Window, width: u32, height: u32) -> Result<()>
-where
-    Conn: Connection,
-{
-    conn.configure_window(
-        win_id,
-        &ConfigureWindowAux {
-            x: None,
-            y: None,
-            width: Some(width),
-            height: Some(height),
-            border_width: None,
-            sibling: None,
-            stack_mode: None,
-        },
-    )?;
-    Ok(())
 }
